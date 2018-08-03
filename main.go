@@ -28,14 +28,14 @@ func doRequest(id int) (*IconInfo, error) {
 	url := fmt.Sprintf(UrlTemplate, id)
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error while creating request url = %s | error = %s", url, err)
+		return nil, err
 	}
 	request.Close = true
 
 	client := http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		return nil, fmt.Errorf("error while doing request url = %s | error = %s", url, err)
+		return nil, err
 	}
 	defer response.Body.Close()
 
@@ -107,6 +107,7 @@ func process() ([]IconInfo, []error) {
 }
 
 func printErrors(errs []error) {
+	fmt.Println("Errors:")
 	for _, err := range errs {
 		fmt.Println(err)
 	}
@@ -115,7 +116,7 @@ func printErrors(errs []error) {
 func printResults(infos []IconInfo) {
 	sort.Slice(infos, func(i, j int) bool { return infos[i].id < infos[j].id })
 
-	fmt.Println("Results: ")
+	fmt.Println("Results:")
 	for _, i := range infos {
 		if i.err != nil {
 			fmt.Printf("url: %s | type: %s | error: %s\n", i.url, i.imageType, i.err)
