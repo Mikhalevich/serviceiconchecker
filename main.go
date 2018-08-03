@@ -28,14 +28,14 @@ func doRequest(id int) (*IconInfo, error) {
 	url := fmt.Sprintf(UrlTemplate, id)
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while creating request url = %s | error = %s", url, err)
 	}
 	request.Close = true
 
 	client := http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error while doing request url = %s | error = %s", url, err)
 	}
 	defer response.Body.Close()
 
@@ -55,12 +55,15 @@ func doRequest(id int) (*IconInfo, error) {
 	return nil, nil
 }
 
-func process() []IconInfo {
+func process() ([]IconInfo, []error) {
 	var wg sync.WaitGroup
 	limit := make(chan bool, ParallelRequestsCount)
 	iic := make(chan IconInfo)
+	errc := make(chan error)
 	finish := make(chan bool)
+	finishError := make(chan bool)
 	infos := []IconInfo{}
+	errs := []error{}
 
 	go func() {
 		for value := range iic {
@@ -69,28 +72,50 @@ func process() []IconInfo {
 		finish <- true
 	}()
 
+	go func() {
+		for err := range errc {
+			errs = append(errs, err)
+		}
+		finishError <- true
+	}()
+
 	for i := 0; i < UrlCount; i++ {
 		wg.Add(1)
 		limit <- true
-		go func(id int, c chan IconInfo) {
+		go func(id int, c chan IconInfo, ec chan error) {
 			defer wg.Done()
-			info, _ := doRequest(id)
+			info, err := doRequest(id)
+
+			if err != nil {
+				ec <- err
+			}
+
 			if info != nil {
 				c <- *info
 			}
 			<-limit
-		}(i, iic)
+		}(i, iic, errc)
 	}
 
 	wg.Wait()
 	close(iic)
+	close(errc)
 	<-finish
+	<-finishError
 
-	return infos
+	return infos, errs
+}
+
+func printErrors(errs []error) {
+	for _, err := range errs {
+		fmt.Println(err)
+	}
 }
 
 func printResults(infos []IconInfo) {
 	sort.Slice(infos, func(i, j int) bool { return infos[i].id < infos[j].id })
+
+	fmt.Println("Results: ")
 	for _, i := range infos {
 		if i.err != nil {
 			fmt.Printf("url: %s | type: %s | error: %s\n", i.url, i.imageType, i.err)
@@ -105,7 +130,8 @@ func printResults(infos []IconInfo) {
 func main() {
 	start := time.Now()
 
-	results := process()
+	results, errs := process()
+	printErrors(errs)
 	printResults(results)
 
 	fmt.Printf("ExecutionTime %s\n", time.Now().Sub(start))
