@@ -9,6 +9,8 @@ import (
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/Mikhalevich/pbw"
 )
 
 const (
@@ -64,6 +66,9 @@ func process() ([]IconInfo, []error) {
 	finishError := make(chan bool)
 	infos := []IconInfo{}
 	errs := []error{}
+	progressChan := make(chan int64, 1000)
+
+	pbw.ShowWithMax(progressChan, UrlCount)
 
 	go func() {
 		for value := range iic {
@@ -83,7 +88,11 @@ func process() ([]IconInfo, []error) {
 		wg.Add(1)
 		limit <- true
 		go func(id int, c chan IconInfo, ec chan error) {
-			defer wg.Done()
+			defer func() {
+				wg.Done()
+				<-limit
+				progressChan <- 1
+			}()
 			info, err := doRequest(id)
 
 			if err != nil {
@@ -93,7 +102,6 @@ func process() ([]IconInfo, []error) {
 			if info != nil {
 				c <- *info
 			}
-			<-limit
 		}(i, iic, errc)
 	}
 
