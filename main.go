@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	UrlTemplate           = "https://content.cdn.viber.com/apps/icons/100/%d/icon.png"
-	UrlCount              = 20000
+	URLTemplate           = "https://content.cdn.viber.com/apps/icons/100/%d/icon.png"
+	URLCount              = 20000
 	ParallelRequestsCount = 100
 )
 
@@ -27,7 +27,7 @@ type IconInfo struct {
 }
 
 func doRequest(id int) (*IconInfo, error) {
-	url := fmt.Sprintf(UrlTemplate, id)
+	url := fmt.Sprintf(URLTemplate, id)
 	request, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func process() ([]IconInfo, []error) {
 	errs := []error{}
 	progressChan := make(chan int64, 1000)
 
-	pbw.ShowWithMax(progressChan, UrlCount)
+	pbw.ShowWithMax(progressChan, URLCount)
 
 	go func() {
 		for value := range iic {
@@ -84,7 +84,7 @@ func process() ([]IconInfo, []error) {
 		finishError <- true
 	}()
 
-	for i := 0; i < UrlCount; i++ {
+	for i := 0; i < URLCount; i++ {
 		wg.Add(1)
 		limit <- true
 		go func(id int, c chan IconInfo, ec chan error) {
